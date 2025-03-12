@@ -14,6 +14,7 @@ dependencies:
   path_provider: ^2.0.2
   permission_handler: ^11.3.1
   sdp_transform: ^0.3.2
+  web_socket_channel: ^3.0.2
   web_socket_client: ^0.1.5
 
 dev_dependencies:
