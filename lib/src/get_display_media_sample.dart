@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:core';
 import 'dart:developer';
@@ -66,15 +65,19 @@ class _GetDisplayMediaSampleState extends State<GetDisplayMediaSample> {
 
       try {
         _socket.messages.listen((message) async {
+          log('📩 WebSocket Message Received : $message'); // <-- Check if this logs
+
           try {
             if (message is String) {
               final data = jsonDecode(message);
               if (data is Map<String, dynamic>) {
-                if (data.containsKey('offer')) {
+                if (data['type'] == 'offer') {
                   _handleOffer(data);
-                } else if (data.containsKey('answer')) {
+                } else if (data['type'] == 'answer') {
+                  log('📩 WebSocket Message Received : ${data['type']}'); // <-- Check if this logs
+
                   _handleAnswer(data);
-                } else if (data.containsKey('candidate')) {
+                } else if (data['type'] == 'candidate') {
                   _handleCandidate(data);
                 }
               }
@@ -101,22 +104,6 @@ class _GetDisplayMediaSampleState extends State<GetDisplayMediaSample> {
     };
 
     _peerConnection = await createPeerConnection(config);
-
-    // _peerConnection?.onIceCandidate = (RTCIceCandidate candidate) {
-    //   log('🔼 Sending ICE Candidate: $candidate');
-
-    //   // ✅ Convert RTCIceCandidate to JSON before sending
-    //   _socket.send(jsonEncode({
-    //     'type': 'candidate',
-    //     'candidate': candidate.candidate,
-    //     'sdpMid': candidate.sdpMid,
-    //     'sdpMLineIndex': candidate.sdpMLineIndex,
-    //   }));
-    // };
-
-    // _peerConnection?.onIceConnectionState = (RTCIceConnectionState state) {
-    //   log('ICE Connection State: $state');
-    // };
   }
 
   void _handleOffer(Map<String, dynamic> data) async {
@@ -143,15 +130,6 @@ class _GetDisplayMediaSampleState extends State<GetDisplayMediaSample> {
     try {
       await _peerConnection?.setRemoteDescription(offer);
       log('✅ Successfully set remote description.');
-
-      // var answer = await _peerConnection!.createAnswer();
-      // await _peerConnection?.setLocalDescription(answer);
-      // log('✅ Sent answer back.');
-
-      // // ✅ Send answer as JSON
-      // _socket.send(jsonEncode({
-      //   'answer': {'sdp': answer.sdp, 'type': answer.type}
-      // }));
     } catch (e) {
       log('❌ Failed to set remote description: $e');
     }
@@ -161,6 +139,7 @@ class _GetDisplayMediaSampleState extends State<GetDisplayMediaSample> {
     log('📩 Received Answer: $data');
 
     var answer = RTCSessionDescription(data['sdp'], data['type']);
+    //ERROR
     await _peerConnection?.setRemoteDescription(answer);
 
     // 🔹 Ensure ICE is restarted if needed
@@ -280,8 +259,7 @@ class _GetDisplayMediaSampleState extends State<GetDisplayMediaSample> {
       await _peerConnection?.setLocalDescription(offer);
 
       log('🔼 Sending Offer: ${offer.toMap()}');
-      _socket.send(
-          jsonEncode({'offer': offer.toMap()})); // ✅ Convert to JSON String
+      _socket.send(jsonEncode(offer.toMap())); // ✅ Convert to JSON String
       _handleOffer(offer.toMap());
     } catch (e) {
       log('Error: $e');

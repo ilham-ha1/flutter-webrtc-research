@@ -29,6 +29,7 @@ class _ScreenViewerAppState extends State<ScreenViewerApp> {
   void dispose() {
     _remoteRenderer.dispose();
     _socket?.sink.close(status.goingAway);
+
     super.dispose();
   }
 
@@ -39,7 +40,7 @@ class _ScreenViewerAppState extends State<ScreenViewerApp> {
 
     log('🌐 Connecting to WebSocket: $uri');
 
-    _socket?.sink.add(jsonEncode({'type': 'offer', 'sdp': ''}));
+    // _socket?.sink.add(jsonEncode({'type': 'offer', 'sdp': ''}));
 
     _socket?.stream.listen((message) async {
       log('📩 WebSocket Message Received: $message'); // <-- Check if this logs
@@ -47,11 +48,13 @@ class _ScreenViewerAppState extends State<ScreenViewerApp> {
       if (message is String) {
         try {
           final data = jsonDecode(message);
-          log('🔍 Decoded Message: $data');
+          log('🔍 Decoded Message: ${data['type']}');
 
-          if (data.containsKey('offer')) {
+          if (data['type'] == 'offer') {
+            log('🔍 Decoded Message offer');
+
             await _handleOffer(data);
-          } else if (data.containsKey('candidate')) {
+          } else if (data['type'] == 'candidate') {
             await _handleCandidate(data);
           } else {
             log('ℹ️ Unknown Message Type: $data');
@@ -117,29 +120,40 @@ class _ScreenViewerAppState extends State<ScreenViewerApp> {
 
   /// ✅ Handle WebRTC Offer
   Future<void> _handleOffer(Map<String, dynamic> offer) async {
+    log('📩 Received _handleOffer 001');
+
     try {
+      log('📩 Received _handleOffer 002');
+
       log('📩 Received WebRTC Offer: $offer');
 
       // Ensure Peer Connection is initialized
+      log('📩 Received _handleOffer 003');
+
       await _initializePeerConnection();
+      log('📩 Received _handleOffer 004');
 
       await _peerConnection?.setRemoteDescription(
           RTCSessionDescription(offer['sdp'], offer['type']));
+      log('📩 Received _handleOffer 005');
 
       final answer = await _peerConnection!.createAnswer();
       await _peerConnection?.setLocalDescription(answer);
 
-      log('✅ Sending WebRTC Answer');
       _socket?.sink.add(jsonEncode({
-        'offer': {'sdp': answer.sdp, 'type': answer.type}
+        'type': 'answer',
+        'sdp': answer.sdp,
       }));
 
+      log('📩 Received _handleOffer 006');
+
       // ✅ Add ICE candidates from the offer (if available)
-      if (offer.containsKey('candidates')) {
-        for (var candidate in offer['candidates']) {
+      if (offer.containsKey('candidate')) {
+        for (var candidate in offer['candidate']) {
           await _handleCandidate(candidate);
         }
       }
+      log('📩 Received _handleOffer 007');
     } catch (e) {
       log('❌ Error handling WebRTC offer: $e');
     }
@@ -158,6 +172,7 @@ class _ScreenViewerAppState extends State<ScreenViewerApp> {
         data['sdpMid'],
         data['sdpMLineIndex'],
       );
+
       await _peerConnection?.addCandidate(candidate);
     } catch (e) {
       log('❌ Error handling ICE candidate: $e');
